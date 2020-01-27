@@ -1,19 +1,51 @@
 import os
 import numpy as np
 import cv2
+import subprocess as sp
 import detectron2
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 
 
-def get_img_names(imgs_dir):
-	img_names = []
+def get_img_paths(imgs_dir):
+	img_paths = []
 	for dirpath, dirnames, filenames in os.walk(imgs_dir):
 		for filename in [f for f in filenames if f.endswith('.png') or f.endswith('.PNG') or f.endswith('.jpg') or f.endswith('.JPG') or f.endswith('.jpeg') or f.endswith('.JPEG')]:
-			img_names.append(filename)
-	img_names.sort()
+			img_paths.append(os.path.join(dirpath,filename))
+	img_paths.sort()
 
-	return img_names
+	return img_paths
+
+def read_images(dir_path):
+	img_paths = get_img_paths(dir_path)
+	for path in img_paths:
+		yield cv2.imread(path)
+
+
+def get_resolution(filename):
+    command = ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+               '-show_entries', 'stream=width,height', '-of', 'csv=p=0', filename]
+    pipe = sp.Popen(command, stdout=sp.PIPE, bufsize=-1)
+    for line in pipe.stdout:
+        w, h = line.decode().strip().split(',')
+        return int(w), int(h)
+
+def read_video(filename):
+    w, h = get_resolution(filename)
+
+    command = ['ffmpeg',
+            '-i', filename,
+            '-f', 'image2pipe',
+            '-pix_fmt', 'bgr24',
+            '-vsync', '0',
+            '-vcodec', 'rawvideo', '-']
+
+    pipe = sp.Popen(command, stdout=sp.PIPE, bufsize=-1)
+    while True:
+        data = pipe.stdout.read(w*h*3)
+        if not data:
+            break
+        yield np.frombuffer(data, dtype='uint8').reshape((h, w, 3))
 
 
 def init_pose_predictor(config_path, weights_path, cuda=True):
@@ -73,22 +105,18 @@ def encode_for_videpose3d(boxes,keypoints,resolution, dataset_name):
 	}], metadata
 
 
-def predict_pose(pose_predictor, imgs_dir, output_path, dataset_name='detectron2'):
+def predict_pose(pose_predictor, img_generator, output_path, dataset_name='detectron2'):
 	'''
 		pose_predictor: The detectron's pose predictor
-		imgs_dir:       The path to the directory containing the images
+		img_generator:  Images source
 		output_path:    The path where the result will be saved in .npz format
 	'''
-
-	img_names = get_img_names(imgs_dir)
-	n = len(img_names)
 	boxes = []
 	keypoints = []
+	resolution = None
 
 	# Predict poses:
-	for i, name in enumerate(img_names):
-		img_path = os.path.join(imgs_dir, name)
-		img = cv2.imread(img_path)
+	for i, img in enumerate(img_generator):
 		pose_output = pose_predictor(img)
 
 		if len(pose_output["instances"].pred_boxes.tensor) > 0:
@@ -101,14 +129,14 @@ def predict_pose(pose_predictor, imgs_dir, output_path, dataset_name='detectron2
 		boxes.append(cls_boxes)
 		keypoints.append(cls_keyps)
 
-		print('{}/{}      '.format(i+1, n), end='\r')
+		# Set metadata:
+		if resolution is None:
+			resolution = {
+				'w': img.shape[1],
+				'h': img.shape[0],
+			}
 
-	# Set metadata:
-	img = cv2.imread(os.path.join(imgs_dir, img_names[0]))
-	resolution = {
-		'w': img.shape[1],
-		'h': img.shape[0],
-	}
+		print('{}      '.format(i+1), end='\r')
 
 	# Encode data in VidePose3d format and save it as a compressed numpy (.npz):
 	data, metadata = encode_for_videpose3d(boxes, keypoints, resolution, dataset_name)
@@ -120,6 +148,7 @@ def predict_pose(pose_predictor, imgs_dir, output_path, dataset_name='detectron2
 	print ('All done!')
 
 
+
 if __name__ == '__main__':
 	# Init pose predictor:
 	model_config_path = './keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
@@ -127,10 +156,10 @@ if __name__ == '__main__':
 	pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=True)
 
 	# Predict poses and save the result:
-	imgs_dir = './images'
+	# img_generator = read_images('./images')    # read images from a directory
+	img_generator = read_video('./video.mp4')  # or get them from a video
 	output_path = './pose2d'
-	predict_pose(pose_predictor, imgs_dir, output_path)
-
+	predict_pose(pose_predictor, img_generator, output_path)
 
 
 
