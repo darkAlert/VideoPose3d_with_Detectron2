@@ -124,7 +124,7 @@ if __name__ == '__main__':
 	# Init pose predictor:
 	model_config_path = './keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
 	model_weights_path = './model_final_5ad38f.pkl'	
-	pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=False)
+	pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=True)
 
 	# Predict poses and save the result:
 	imgs_dir = './images'
