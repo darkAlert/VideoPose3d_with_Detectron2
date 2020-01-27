@@ -16,11 +16,13 @@ def get_img_names(imgs_dir):
 	return img_names
 
 
-def init_pose_predictor(config_path, weights_path):
+def init_pose_predictor(config_path, weights_path, cuda=True):
 	cfg = get_cfg()
 	cfg.merge_from_file(config_path)
 	cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
 	cfg.MODEL.WEIGHTS = weights_path
+	if cuda == False:
+		cfg.MODEL.DEVICE='cpu'
 	predictor = DefaultPredictor(cfg)
 
 	return predictor
@@ -71,7 +73,7 @@ def encode_for_videpose3d(boxes,keypoints,resolution, dataset_name):
 	}], metadata
 
 
-def predict_pose(pose_predictor, imgs_dir, output_path, dataset_name='custom_by_detectron2'):
+def predict_pose(pose_predictor, imgs_dir, output_path, dataset_name='detectron2'):
 	'''
 		pose_predictor: The detectron's pose predictor
 		imgs_dir:       The path to the directory containing the images
@@ -122,13 +124,12 @@ if __name__ == '__main__':
 	# Init pose predictor:
 	model_config_path = './keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
 	model_weights_path = './model_final_5ad38f.pkl'	
-	pose_predictor = init_pose_predictor(model_config_path, model_weights_path)
+	pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=False)
 
 	# Predict poses and save the result:
 	imgs_dir = './images'
 	output_path = './pose2d'
 	predict_pose(pose_predictor, imgs_dir, output_path)
-
 
 
 
