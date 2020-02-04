@@ -30,6 +30,7 @@ def get_resolution(filename):
         w, h = line.decode().strip().split(',')
         return int(w), int(h)
 
+
 def read_video(filename):
     w, h = get_resolution(filename)
 
@@ -150,26 +151,17 @@ def predict_pose(pose_predictor, img_generator, output_path, dataset_name='detec
 
 
 if __name__ == '__main__':
-	# # Init pose predictor:
-	# model_config_path = './keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
-	# model_weights_path = './model_final_5ad38f.pkl'	
-	# pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=True)
-
-	# # Predict poses and save the result:
-	# # img_generator = read_images('./images')    # read images from a directory
-	# img_generator = read_video('./video.mp4')  # or get them from a video
-	# output_path = './pose2d'
-	# predict_pose(pose_predictor, img_generator, output_path)
-
-
 	# Init pose predictor:
-	model_config_path = '/home/darkalert/builds/detectron2/configs/COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
-	model_weights_path = '/home/darkalert/KazendiJob/DLab/Detectron2/Models/model_final_5ad38f.pkl'
+	model_config_path = './keypoint_rcnn_X_101_32x8d_FPN_3x.yaml'
+	model_weights_path = './model_final_5ad38f.pkl'	
 	pose_predictor = init_pose_predictor(model_config_path, model_weights_path, cuda=True)
 
 	# Predict poses and save the result:
-	img_generator = read_video('/home/darkalert/KazendiJob/Data/HoloVideo/Data/mp4/person_1/light-100_temp-5600/garment_2/back_position/cam2.mp4')
-	# img_generator = read_images('/home/darkalert/KazendiJob/DLab/VideoPose3D/VideoPose3d_with_Detectron2/test/imgs')
-	output_path = './pose2d_by_detectron2'
+	# img_generator = read_images('./images')    # read images from a directory
+	img_generator = read_video('./video.mp4')  # or get them from a video
+	output_path = './pose2d'
 	predict_pose(pose_predictor, img_generator, output_path)
+
+
+
 
